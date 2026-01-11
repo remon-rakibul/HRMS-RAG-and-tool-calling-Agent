@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/recom-white-full.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HRMS Agent</title>
+    <script>
+      // Initialize dark mode before React loads to prevent flash
+      (function() {
+        try {
+          const stored = localStorage.getItem('darkMode');
+          const html = document.documentElement;
+          
+          if (stored === 'true') {
+            html.classList.add('dark');
+          } else if (stored === 'false') {
+            html.classList.remove('dark');
+          } else {
+            // No preference stored, default to light mode
+            html.classList.remove('dark');
+            localStorage.setItem('darkMode', 'false');
+          }
+        } catch (e) {
+          // If localStorage fails, just ensure light mode
+          document.documentElement.classList.remove('dark');
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
