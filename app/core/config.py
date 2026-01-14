@@ -1,6 +1,6 @@
 """Application configuration using Pydantic Settings."""
 from pydantic_settings import BaseSettings
-from typing import Optional
+from typing import Optional, List, Dict, Any
 from pathlib import Path
 
 
@@ -27,6 +27,15 @@ class Settings(BaseSettings):
     HRMS_MSSQL_USERNAME: Optional[str] = None
     HRMS_MSSQL_PASSWORD: Optional[str] = None
     HRMS_MSSQL_PORT: int = 1433
+    
+    # MCP (Model Context Protocol) Configuration
+    MCP_SERVER_ENABLED: bool = True
+    MCP_SERVER_TRANSPORT: str = "stdio"  # "stdio" for subprocess, "http" for external access
+    MCP_SERVER_COMMAND: str = "python"
+    MCP_SERVER_ARGS: List[str] = ["-m", "mcp_server.server"]
+    MCP_SERVER_URL: str = "http://0.0.0.0:8001/mcp"  # URL for HTTP transport
+    MCP_SERVER_PORT: int = 8001  # Port for HTTP transport
+    MCP_EXTERNAL_SERVERS: List[Dict[str, Any]] = []  # List of dicts with server configs: [{"name": "server1", "transport": "stdio", "command": "python", "args": [...]}]
     
     def __init__(self, **kwargs):
         """Initialize settings with validation."""

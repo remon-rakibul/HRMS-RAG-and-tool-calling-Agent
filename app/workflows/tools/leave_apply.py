@@ -151,7 +151,7 @@ def apply_for_leave(
     total_days: Annotated[int, "Total number of leave days (e.g., 1, 2, 3)"],
     reason: Annotated[str, "Reason or purpose for the leave application"],
     employee_id: Annotated[Optional[int], "Employee ID (optional, defaults to logged-in user)"] = None,
-    leave_type_id: Annotated[Optional[int], "Leave type ID: 1=Annual, 2=Casual, 3=Sick (optional, defaults to 2)"] = None,
+    leave_type_id: Annotated[Optional[int], "Leave type ID: 6=Annual, 15=Casual, 2=Sick (optional, defaults to 6)"] = None,
     day_leave_type: Annotated[Optional[str], "Leave duration: 'Full-Day' or 'Half-Day' (optional, defaults to Full-Day)"] = None,
     half_day_type: Annotated[Optional[str], "If Half-Day, specify: 'First-Half' or 'Second-Half' (optional)"] = None
 ) -> str:

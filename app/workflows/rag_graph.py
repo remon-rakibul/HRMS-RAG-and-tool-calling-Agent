@@ -11,6 +11,7 @@ from app.workflows.prompt_loader import get_retriever_tool_config
 from app.workflows.tools import get_all_tools
 from app.core.config import settings
 from app.utils.db_uri import normalize_db_uri_for_asyncpg
+from mcp_server.adapter import get_mcp_tools
 
 
 def build_rag_graph(
@@ -52,6 +53,9 @@ def build_rag_graph(
         for t in additional_tools:
             if t not in all_tools:
                 all_tools.append(t)
+    
+    # Note: MCP tools should be loaded asynchronously and passed via additional_tools
+    # This is handled in chat_service.py
     
     # Create workflow nodes with all tools
     nodes = create_workflow_nodes(retriever_tool, all_tools=all_tools)

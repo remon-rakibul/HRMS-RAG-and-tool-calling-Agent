@@ -5,6 +5,7 @@ from langchain_core.messages import convert_to_messages
 from app.services.vector_store_service import get_vector_store_service
 from app.workflows.rag_graph import build_rag_graph, get_checkpointer
 from app.utils.retrieval_logger import get_retrieval_logger
+from mcp_server.adapter import get_mcp_tools
 
 # Debug flag - set to True to see streaming events in console
 DEBUG_STREAMING = False
@@ -16,7 +17,7 @@ class ChatService:
     def __init__(self):
         self.vector_store_service = get_vector_store_service()
     
-    def get_graph_for_user(self, user_id: Optional[int] = None, checkpointer=None):
+    async def get_graph_for_user(self, user_id: Optional[int] = None, checkpointer=None, mcp_tools=None):
         """Get a RAG graph configured for a specific user with checkpointer.
         
         Creates a RAG workflow that retrieves only from the user's documents.
@@ -24,6 +25,7 @@ class ChatService:
         Args:
             user_id: User ID for scoping retriever (filters documents by user)
             checkpointer: PostgresSaver checkpointer instance (required)
+            mcp_tools: Optional list of MCP tools (if None, will be loaded automatically)
             
         Returns:
             Compiled LangGraph workflow with user-isolated retrieval
@@ -39,12 +41,17 @@ class ChatService:
             search_kwargs={"k": 5}      # Retrieve top 5 most similar docs
         )
         
+        # Load MCP tools if not provided
+        if mcp_tools is None:
+            mcp_tools = await get_mcp_tools()
+        
         # Build graph with user's retriever AND checkpointer
         graph = build_rag_graph(
             retriever=retriever,
             checkpointer=checkpointer,
             tool_name="retrieve_documents",
-            tool_description="Search and return information from your ingested documents."
+            tool_description="Search and return information from your ingested documents.",
+            additional_tools=mcp_tools if mcp_tools else None
         )
         
         return graph
@@ -86,7 +93,7 @@ class ChatService:
             checkpointer = await get_checkpointer()
             
             # Build graph WITH checkpointer
-            graph = self.get_graph_for_user(user_id=user_id, checkpointer=checkpointer)
+            graph = await self.get_graph_for_user(user_id=user_id, checkpointer=checkpointer)
             
             # Prepare input
             input_messages = convert_to_messages([{"role": "user", "content": message}])
