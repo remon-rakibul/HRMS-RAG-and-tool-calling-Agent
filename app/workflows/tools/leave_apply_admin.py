@@ -510,7 +510,7 @@ def apply_leave_for_employee(
         # Endpoint 12: GetCompanyHolidayAndEvents
         print("[HRMS Admin] Step 12/18: GetCompanyHolidayAndEvents...", flush=True)
         resp12 = httpx.get(
-            f"{HRMS_BASE_URL}/api/HRMS/Leave/LeaveRequest/GetCompanyHolidayAndEvents",
+            f"{HRMS_BASE_URL}/api/hrms/dashboard/CommonDashboard/GetCompanyHolidayAndEvents",
             headers=headers, timeout=30.0, verify=False
         )
         print(f"[HRMS Admin] ✓ Step 12 complete (Status: {resp12.status_code})", flush=True)
@@ -518,7 +518,7 @@ def apply_leave_for_employee(
         # Endpoint 13: GetMyLeaveAppliedRecords
         print("[HRMS Admin] Step 13/18: GetMyLeaveAppliedRecords...", flush=True)
         resp13 = httpx.get(
-            f"{HRMS_BASE_URL}/api/HRMS/Leave/LeaveRequest/GetMyLeaveAppliedRecords",
+            f"{HRMS_BASE_URL}/api/hrms/dashboard/LeaveCommonDashboard/GetMyLeaveAppliedRecords",
             params={"pageNumber": 1, "pageSize": 5},
             headers=headers, timeout=30.0, verify=False
         )
@@ -527,7 +527,7 @@ def apply_leave_for_employee(
         # Endpoint 14: GetEmployeesLeaveApproval
         print("[HRMS Admin] Step 14/18: GetEmployeesLeaveApproval...", flush=True)
         resp14 = httpx.get(
-            f"{HRMS_BASE_URL}/api/HRMS/Leave/LeaveRequest/GetEmployeesLeaveApproval",
+            f"{HRMS_BASE_URL}/api/hrms/dashboard/EmployeeLeaveDetails/GetEmployeesLeaveApproval",
             params={"pageSize": 5},
             headers=headers, timeout=30.0, verify=False
         )
@@ -536,7 +536,7 @@ def apply_leave_for_employee(
         # Endpoint 15: GetSubordinatesLeaveApproval
         print("[HRMS Admin] Step 15/18: GetSubordinatesLeaveApproval...", flush=True)
         resp15 = httpx.get(
-            f"{HRMS_BASE_URL}/api/HRMS/Leave/LeaveRequest/GetSubordinatesLeaveApproval",
+            f"{HRMS_BASE_URL}/api/hrms/dashboard/SubordinatesLeave/GetSubordinatesLeaveApproval",
             params={"pageNumber": 1, "pageSize": 5},
             headers=headers, timeout=30.0, verify=False
         )
@@ -544,28 +544,28 @@ def apply_leave_for_employee(
         
         # Endpoint 16: EmployeeLeaveBalancesforSuperviserteam
         print("[HRMS Admin] Step 16/18: EmployeeLeaveBalancesforSuperviserteam...", flush=True)
-        resp16 = httpx.get(
+        resp16 = httpx.post(
             f"{HRMS_BASE_URL}/api/HRMS/Leave/EmployeeLeaveBalance/EmployeeLeaveBalancesforSuperviserteam",
+            json={
+                "employeeId": employee_id,
+                "leaveTypeId": leave_type_id,
+                "superviserEmployeeId": 0,
+                "pageNumber": 1,
+                "pageSize": 15
+            },
             headers=headers, timeout=30.0, verify=False
         )
         print(f"[HRMS Admin] ✓ Step 16 complete (Status: {resp16.status_code})", flush=True)
         
         # Endpoint 17: SendLeaveEmail
         print("[HRMS Admin] Step 17/18: SendLeaveEmail...", flush=True)
-        present_value = json.dumps({
-            "EmployeeId": employee_id,
-            "LeaveTypeId": leave_type_id,
-            "AppliedFromDate": from_date,
-            "AppliedToDate": to_date
-        })
+        
+        # Get the response from resp11 (leave apply endpoint) to use as payload
+        # Use json= instead of data= to send as JSON with correct Content-Type header
+        resp11_json = resp11.json() if resp11.status_code == 200 else {}
         resp17 = httpx.post(
             f"{HRMS_BASE_URL}/api/HRMS/Leave/LeaveRequest/SendLeaveEmail",
-            data={
-                "action": "Insert",
-                "leaveTypeId": leave_type_id,
-                "flag": "Submit",
-                "presentValue": present_value
-            },
+            json=resp11_json,
             headers=headers,
             timeout=30.0,
             verify=False
