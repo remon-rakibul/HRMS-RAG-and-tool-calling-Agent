@@ -4,9 +4,9 @@
 
 ### Step 1: Edit `prompts.json`
 ```bash
-nano refactored/app/workflows/prompts.json
+nano app/workflows/prompts.json
 # or
-vim refactored/app/workflows/prompts.json
+vim app/workflows/prompts.json
 ```
 
 ### Step 2: Modify Any Prompt
@@ -97,6 +97,6 @@ python run.py
 
 ---
 
-**File Location:** `refactored/app/workflows/prompts.json`  
-**Documentation:** `refactored/app/workflows/PROMPTS_GUIDE.md`
+**File Location:** `app/workflows/prompts.json`  
+**Documentation:** `app/workflows/PROMPTS_GUIDE.md`
 

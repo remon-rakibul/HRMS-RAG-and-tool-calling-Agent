@@ -49,6 +49,25 @@ The tool uses employee_id in this order:
 3. `app/api/v1/endpoints/chat.py` - Passes `employee_id` to chat service
 4. `app/services/chat_service.py` - Sets context before streaming
 5. `app/workflows/tools/leave_apply.py` - Reads from context
+6. `app/workflows/tools/leave_balance.py` - Reads from context
+7. `app/workflows/tools/attendance_apply.py` - Reads from context
+
+## Tools Using Employee Context
+
+All HRMS tools automatically use `employee_id` from context when available:
+
+### Employee Self-Service Tools
+- ✅ `hrms_leave_apply_tool` - Uses context employee_id
+- ✅ `hrms_leave_balance_tool` - Uses context employee_id
+- ✅ `hrms_attendance_apply_tool` - Uses context employee_id
+
+### Admin Tools
+Admin tools use admin credentials for authentication but can operate on behalf of any employee:
+- ✅ `hrms_leave_apply_admin_tool` - Admin authentication, employee search
+- ✅ `hrms_leave_approve_admin_tool` - Admin authentication, employee search
+- ✅ `hrms_leave_cancel_admin_tool` - Admin authentication, employee search
+- ✅ `hrms_attendance_approve_admin_tool` - Admin authentication, employee search
+- ✅ `hrms_attendance_cancel_admin_tool` - Admin authentication, employee search
 
 ## Testing
 

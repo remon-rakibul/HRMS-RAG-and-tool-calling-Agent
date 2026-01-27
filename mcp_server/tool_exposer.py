@@ -8,7 +8,12 @@ from typing import Annotated, Optional
 from app.workflows.tools.leave_apply import apply_for_leave
 from app.workflows.tools.leave_balance import get_leave_balance
 from app.workflows.tools.attendance_apply import apply_for_manual_attendance
+from app.workflows.tools.employee_info import get_employee_info
 from app.workflows.tools.leave_apply_admin import apply_leave_for_employee
+from app.workflows.tools.leave_approve_admin import approve_leave_for_employee
+from app.workflows.tools.leave_cancel_admin import cancel_leave_for_employee
+from app.workflows.tools.attendance_approve_admin import approve_attendance_for_employee
+from app.workflows.tools.attendance_cancel_admin import cancel_attendance_for_employee
 
 
 # These functions will be decorated with @mcp.tool() in server.py
@@ -61,6 +66,13 @@ def hrms_attendance_apply(
     )
 
 
+def hrms_employee_info(
+    employee_id: Annotated[Optional[int], "Employee ID (optional, defaults to logged-in user)"] = None
+) -> str:
+    """Get the current user's employee personal information from the HRMS system."""
+    return get_employee_info(employee_id=employee_id)
+
+
 def hrms_leave_apply_admin(
     employee_name: Annotated[str, "Employee name to search for (e.g., 'Neha Muquid')"],
     start_date: Annotated[str, "Leave start date in YYYY-MM-DD format (e.g., '2024-01-14')"],
@@ -79,4 +91,60 @@ def hrms_leave_apply_admin(
         leave_type_id=leave_type_id,
         day_leave_type=day_leave_type,
         half_day_type=half_day_type
+    )
+
+
+def hrms_leave_approve_admin(
+    employee_name: Annotated[str, "Employee name to search for (e.g., 'Neha Muquid')"],
+    applied_date: Annotated[str, "Date the leave was applied for in YYYY-MM-DD format (e.g., '2026-01-12')"],
+    remarks: Annotated[Optional[str], "Approval remarks (optional, defaults to 'Approved')"] = None
+) -> str:
+    """Approve leave request for an employee. Search by name, find leave request by applied date, and approve it."""
+    return approve_leave_for_employee(
+        employee_name=employee_name,
+        applied_date=applied_date,
+        remarks=remarks
+    )
+
+
+def hrms_leave_cancel_admin(
+    employee_name: Annotated[str, "Employee name to search for (e.g., 'Neha Muquid')"],
+    applied_date: Annotated[str, "Date the leave was applied for in YYYY-MM-DD format (e.g., '2026-01-12')"],
+    remarks: Annotated[Optional[str], "Cancellation remarks (optional, defaults to 'Cancelled')"] = None
+) -> str:
+    """Cancel leave request for an employee. Search by name, find leave request by applied date, and cancel it."""
+    return cancel_leave_for_employee(
+        employee_name=employee_name,
+        applied_date=applied_date,
+        remarks=remarks
+    )
+
+
+def hrms_attendance_approve_admin(
+    employee_name: Annotated[str, "Employee name to search for (e.g., 'Neha Muquid')"],
+    applied_date: Annotated[str, "Date the attendance was applied for in YYYY-MM-DD format (e.g., '2026-01-12')"],
+    requested_time: Annotated[str, "Time request type: 'In-Time', 'Out-Time', or 'Both' (can also accept 'intime', 'outtime', 'both')"],
+    remarks: Annotated[Optional[str], "Approval remarks (optional, defaults to 'Approved')"] = None
+) -> str:
+    """Approve manual attendance request for an employee. Search by name, find attendance request by applied date and time type, and approve it."""
+    return approve_attendance_for_employee(
+        employee_name=employee_name,
+        applied_date=applied_date,
+        requested_time=requested_time,
+        remarks=remarks
+    )
+
+
+def hrms_attendance_cancel_admin(
+    employee_name: Annotated[str, "Employee name to search for (e.g., 'Neha Muquid')"],
+    applied_date: Annotated[str, "Date the attendance was applied for in YYYY-MM-DD format (e.g., '2026-01-12')"],
+    requested_time: Annotated[str, "Time request type: 'In-Time', 'Out-Time', or 'Both' (can also accept 'intime', 'outtime', 'both')"],
+    remarks: Annotated[Optional[str], "Cancellation reason (optional, defaults to 'Cancelled')"] = None
+) -> str:
+    """Cancel manual attendance request for an employee. Search by name, find attendance request by applied date and time type, and cancel it."""
+    return cancel_attendance_for_employee(
+        employee_name=employee_name,
+        applied_date=applied_date,
+        requested_time=requested_time,
+        remarks=remarks
     )

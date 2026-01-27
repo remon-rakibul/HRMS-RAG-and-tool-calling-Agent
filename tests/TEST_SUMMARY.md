@@ -94,16 +94,18 @@ New fixtures added:
 
 ### ✅ HRMS API Integration
 - Leave application tool successfully extracts employee_id from context
-- All 6 HRMS API endpoints are called in sequence:
-  1. Encryption (username/password)
-  2. Authentication/login
-  3. Leave balance fetch
-  4. Leave period fetch
-  5. Leave types fetch
-  6. Mobile number fetch
-  7. Address fetch
-  8. Leave count calculation
-  9. Leave request submission
+- All HRMS tools properly integrated:
+  - **Employee Self-Service Tools**:
+    - Leave application (9-step workflow)
+    - Leave balance query
+    - Attendance application
+  - **Admin Tools**:
+    - Leave apply admin (18-step workflow)
+    - Leave approve admin (9-step workflow)
+    - Leave cancel admin (5-step workflow)
+    - Attendance approve admin (6-step workflow)
+    - Attendance cancel admin (6-step workflow)
+- All tools use proper authentication and error handling
 
 ## Running the Tests
 
@@ -187,6 +189,22 @@ Tests use the following environment variables from `.env`:
 8. ✅ All HRMS API endpoints are called in correct sequence
 9. ✅ Tests verify functionality with real API integration
 
+## Test Coverage Summary
+
+### Tools Tested
+- ✅ Leave application (employee self-service)
+- ✅ Leave balance query
+- ✅ Attendance application
+- ✅ Admin leave operations (apply, approve, cancel)
+- ✅ Admin attendance operations (approve, cancel)
+
+### Integration Points Tested
+- ✅ Session management and context propagation
+- ✅ Employee context isolation
+- ✅ Thread isolation per employee
+- ✅ HRMS API authentication flows
+- ✅ Multi-step workflow execution
+
 ## Next Steps (Optional)
 
 For production deployment, consider:
@@ -194,5 +212,6 @@ For production deployment, consider:
 2. Implement Redis-based SessionStore for distributed deployments
 3. Add performance/load testing for concurrent sessions
 4. Add more comprehensive error handling tests
-5. Create integration tests for other HRMS operations beyond leave application
+5. Add integration tests for MCP server tool exposure
+6. Add end-to-end tests for complete admin workflows
 

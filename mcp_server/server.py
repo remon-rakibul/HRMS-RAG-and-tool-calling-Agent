@@ -20,7 +20,12 @@ from mcp_server.tool_exposer import (
     hrms_leave_apply,
     hrms_leave_balance,
     hrms_attendance_apply,
-    hrms_leave_apply_admin
+    hrms_employee_info,
+    hrms_leave_apply_admin,
+    hrms_leave_approve_admin,
+    hrms_leave_cancel_admin,
+    hrms_attendance_approve_admin,
+    hrms_attendance_cancel_admin
 )
 
 # Create FastMCP instance
@@ -78,6 +83,14 @@ def hrms_attendance_apply_tool(
 
 
 @mcp.tool()
+def hrms_employee_info_tool(
+    employee_id: Optional[int] = None
+) -> str:
+    """Get the current user's employee personal information from the HRMS system."""
+    return hrms_employee_info(employee_id=employee_id)
+
+
+@mcp.tool()
 def hrms_leave_apply_admin_tool(
     employee_name: str,
     start_date: str,
@@ -96,6 +109,66 @@ def hrms_leave_apply_admin_tool(
         leave_type_id=leave_type_id,
         day_leave_type=day_leave_type,
         half_day_type=half_day_type
+    )
+
+
+@mcp.tool()
+def hrms_leave_approve_admin_tool(
+    employee_name: str,
+    applied_date: str,
+    remarks: Optional[str] = None
+) -> str:
+    """Approve leave request for an employee. Search by name, find leave request by applied date, and approve it."""
+    return hrms_leave_approve_admin(
+        employee_name=employee_name,
+        applied_date=applied_date,
+        remarks=remarks
+    )
+
+
+@mcp.tool()
+def hrms_leave_cancel_admin_tool(
+    employee_name: str,
+    applied_date: str,
+    remarks: Optional[str] = None
+) -> str:
+    """Cancel leave request for an employee. Search by name, find leave request by applied date, and cancel it."""
+    return hrms_leave_cancel_admin(
+        employee_name=employee_name,
+        applied_date=applied_date,
+        remarks=remarks
+    )
+
+
+@mcp.tool()
+def hrms_attendance_approve_admin_tool(
+    employee_name: str,
+    applied_date: str,
+    requested_time: str,
+    remarks: Optional[str] = None
+) -> str:
+    """Approve manual attendance request for an employee. Search by name, find attendance request by applied date and time type, and approve it."""
+    return hrms_attendance_approve_admin(
+        employee_name=employee_name,
+        applied_date=applied_date,
+        requested_time=requested_time,
+        remarks=remarks
+    )
+
+
+@mcp.tool()
+def hrms_attendance_cancel_admin_tool(
+    employee_name: str,
+    applied_date: str,
+    requested_time: str,
+    remarks: Optional[str] = None
+) -> str:
+    """Cancel manual attendance request for an employee. Search by name, find attendance request by applied date and time type, and cancel it."""
+    return hrms_attendance_cancel_admin(
+        employee_name=employee_name,
+        applied_date=applied_date,
+        requested_time=requested_time,
+        remarks=remarks
     )
 
 

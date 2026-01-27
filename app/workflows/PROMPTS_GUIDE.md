@@ -7,7 +7,7 @@ All system messages and prompts are now stored in `prompts.json` for easy modifi
 ## File Location
 
 ```
-refactored/app/workflows/prompts.json
+app/workflows/prompts.json
 ```
 
 ## Structure
@@ -60,8 +60,9 @@ Open the file and modify any template:
 ```bash
 # Stop the server (Ctrl+C)
 # Then restart
-cd /home/rakib/Documents/rag-pipeline/refactored
 python run.py
+# or
+uvicorn app.main:app --reload
 ```
 
 **Note:** Prompts are loaded at startup. Changes require a restart.

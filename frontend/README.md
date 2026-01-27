@@ -10,6 +10,8 @@ React + TypeScript frontend for the HRMS Agent Chat system.
 - ✅ Real-time streaming chat (SSE)
 - ✅ Chat history display
 - ✅ Employee-specific conversation threads
+- ✅ HRMS tool integration (leave, attendance, admin tools)
+- ✅ Natural language interface for HRMS operations
 
 ## Setup
 

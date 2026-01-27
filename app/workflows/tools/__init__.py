@@ -113,6 +113,11 @@ from app.workflows.tools import example_tools  # noqa: E402, F401
 from app.workflows.tools import leave_apply  # noqa: E402, F401
 from app.workflows.tools import leave_balance  # noqa: E402, F401
 from app.workflows.tools import attendance_apply  # noqa: E402, F401
+from app.workflows.tools import employee_info  # noqa: E402, F401
 from app.workflows.tools import leave_apply_admin  # noqa: E402, F401
+from app.workflows.tools import leave_approve_admin  # noqa: E402, F401
+from app.workflows.tools import leave_cancel_admin  # noqa: E402, F401
+from app.workflows.tools import attendance_approve_admin  # noqa: E402, F401
+from app.workflows.tools import attendance_cancel_admin  # noqa: E402, F401
 
 

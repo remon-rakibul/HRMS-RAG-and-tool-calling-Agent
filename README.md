@@ -1,16 +1,49 @@
-# RAG Pipeline FastAPI Backend
+# HRMS Agentic AI Backend
 
-Production-ready FastAPI backend for LangGraph RAG pipeline with authentication, document ingestion, and streaming chat.
+Production-ready FastAPI backend for an agentic AI-powered HRMS system with LangGraph RAG pipeline, HRMS integrations, and MCP (Model Context Protocol) server support.
 
 ## Features
 
+### Core AI Capabilities
+- 🤖 **Agentic AI Framework**: True autonomous tool selection and execution using LangGraph
+- 💬 **Conversational AI**: Natural language processing with context-aware multi-turn conversations
+- 🔍 **RAG (Retrieval Augmented Generation)**: Semantic document search using pgvector with cosine similarity
+- 📄 **Multi-format Document Ingestion**: PDF, DOCX, URLs, TXT with automatic text extraction
+- 🔄 **LangGraph Workflow Orchestration**: Stateful workflows with PostgreSQL checkpointing
+- 📊 **Streaming Support**: Real-time token-level streaming for responsive UX
+
+### HRMS Integration
+- 🏢 **Employee Self-Service Tools**:
+  - `hrms_leave_apply_tool` - Apply for leave with natural language
+  - `hrms_leave_balance_tool` - Query leave balances instantly
+  - `hrms_attendance_apply_tool` - Apply for manual attendance corrections
+  - `hrms_employee_info_tool` - Get employee personal information
+- 👨‍💼 **Admin Tools**:
+  - `hrms_leave_apply_admin_tool` - Admin: Apply leave for employees
+  - `hrms_leave_approve_admin_tool` - Admin: Approve leave requests
+  - `hrms_leave_cancel_admin_tool` - Admin: Cancel leave requests
+  - `hrms_attendance_approve_admin_tool` - Admin: Approve attendance requests
+  - `hrms_attendance_cancel_admin_tool` - Admin: Cancel attendance requests
+
+### Authentication & Security
 - 🔐 JWT-based authentication with refresh tokens
-- 📄 Multi-format document ingestion (PDF, DOCX, URLs, TXT)
-- 🗑️ Document management (list, delete by ID or record)
-- 💬 Streaming chat with RAG workflow
+- 🔒 Session management with employee context
+- 🛡️ Token blacklist for secure logout
+
+### Document Management
+- 📚 Document ingestion and vector storage
+- 🗑️ Document deletion (by ID or record)
+- 📋 Document listing with metadata
+
+### MCP (Model Context Protocol) Server
+- 🔌 **MCP Server Integration**: Expose HRMS tools via MCP protocol
+- 🌐 **HTTP & STDIO Transport**: Support for both transport modes
+- 🔧 **External Tool Access**: Connect external MCP clients to HRMS tools
+- 📡 **REST API Endpoint**: `/api/v1/mcp/tools` for tool discovery
+
+### Additional Features
 - 📜 Chat history with thread management
 - 🐘 PostgreSQL with pgvector for vector storage
-- 🔄 LangGraph checkpointing for conversation state
 - 🧠 Memory management (delete thread memory, user-scoped cleanup)
 - 📊 Retrieval logging for debugging and improvement
 - ⚙️ Configurable prompts via JSON file
@@ -110,13 +143,20 @@ For detailed Docker instructions, see [DOCKER.md](DOCKER.md).
 - `GET /api/v1/data` - List user's documents
 
 ### Chat
-- `POST /api/v1/chat` - Stream chat response (SSE)
+- `POST /api/v1/chat` - Stream chat response (SSE) with HRMS tool integration
+  - Supports natural language leave/attendance requests
+  - Automatically routes to appropriate HRMS tools
+  - Accepts `employee_id` for employee context
 - `GET /api/v1/history` - Get chat threads
 - `GET /api/v1/history/{thread_id}` - Get thread messages
 
 ### Memory Management
 - `DELETE /api/v1/memory/{thread_id}` - Delete memory for a specific thread (verifies ownership)
 - `DELETE /api/v1/memory` - Delete all memory for the current user (user-scoped)
+
+### MCP Server
+- `GET /api/v1/mcp/tools` - List all available MCP tools
+- MCP Server runs on port 8001 (HTTP) or via STDIO (default)
 
 ## Usage Examples
 
@@ -178,8 +218,37 @@ curl -X DELETE http://localhost:8000/api/v1/remove/by-record/2 \
   -H "Authorization: Bearer YOUR_TOKEN"
 ```
 
-### Chat
+### Chat with HRMS Tools
 ```bash
+# Natural language leave application
+curl -X POST http://localhost:8000/api/v1/chat \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message": "Apply for 2 days leave from December 10th",
+    "employee_id": 335,
+    "thread_id": null
+  }'
+
+# Query leave balance
+curl -X POST http://localhost:8000/api/v1/chat \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message": "What is my leave balance?",
+    "employee_id": 335
+  }'
+
+# Get employee information
+curl -X POST http://localhost:8000/api/v1/chat \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message": "Who am I?",
+    "employee_id": 335
+  }'
+
+# Document Q&A
 curl -X POST http://localhost:8000/api/v1/chat \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json" \
@@ -266,8 +335,16 @@ See [.github/workflows/README.md](.github/workflows/README.md) for detailed work
 | `OPENAI_API_KEY` | Yes | - | OpenAI API key for embeddings and chat |
 | `SECRET_KEY` | Yes | - | JWT secret key (use strong random string) |
 | `USER_AGENT` | No | - | User agent string for web scraping |
-| `ACCESS_TOKEN_EXPIRE_MINUTES` | No | 30 | Access token expiration time |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | No | 120 | Access token expiration time (2 hours) |
 | `REFRESH_TOKEN_EXPIRE_DAYS` | No | 7 | Refresh token expiration time |
+| `MCP_SERVER_ENABLED` | No | `true` | Enable/disable MCP server |
+| `MCP_SERVER_TRANSPORT` | No | `stdio` | MCP transport: `stdio` or `http` |
+| `MCP_SERVER_PORT` | No | `8001` | MCP server port (HTTP transport) |
+| `MCP_SERVER_URL` | No | `http://0.0.0.0:8001/mcp` | MCP server URL (HTTP transport) |
+| `HRMS_MSSQL_SERVER` | No | - | HRMS MSSQL server (optional, for direct queries) |
+| `HRMS_MSSQL_DATABASE` | No | - | HRMS MSSQL database name |
+| `HRMS_MSSQL_USERNAME` | No | - | HRMS MSSQL username |
+| `HRMS_MSSQL_PASSWORD` | No | - | HRMS MSSQL password |
 
 ### Prompts Configuration
 
@@ -301,11 +378,80 @@ python view_retrieval_logs.py stats
 
 See `Dockerfile` and `docker-compose.yml` for containerized deployment.
 
+## Available HRMS Tools
+
+### Employee Self-Service Tools
+1. **`hrms_leave_apply_tool`** - Apply for leave using natural language
+   - Supports multiple leave types (Annual, Casual, Sick)
+   - Full-day and half-day options
+   - Automatic date parsing and validation
+
+2. **`hrms_leave_balance_tool`** - Query leave balances
+   - Instant balance retrieval
+   - Multi-leave type support
+   - Context-aware (uses logged-in employee ID)
+
+3. **`hrms_attendance_apply_tool`** - Apply for manual attendance
+   - Flexible time entry (in-time, out-time, or both)
+   - Reason validation
+   - Automatic date formatting
+
+4. **`hrms_employee_info_tool`** - Get employee personal information
+   - Retrieve employee details (name, department, designation, branch, etc.)
+   - Context-aware (uses logged-in employee ID)
+   - Answers questions like "Who am I?", "Where do I work?", "What is my designation?"
+
+### Admin Tools
+4. **`hrms_leave_apply_admin_tool`** - Admin: Apply leave for employees
+   - Employee search by name
+   - Hierarchy validation
+   - Automated 18-step leave application workflow
+
+5. **`hrms_leave_approve_admin_tool`** - Admin: Approve leave requests
+   - Search employee by name
+   - Find leave request by applied date
+   - Automated approval workflow with email notifications
+
+6. **`hrms_leave_cancel_admin_tool`** - Admin: Cancel leave requests
+   - Search employee by name
+   - Find leave request by applied date
+   - Automated cancellation workflow with email notifications
+
+7. **`hrms_attendance_approve_admin_tool`** - Admin: Approve attendance requests
+   - Search employee by name
+   - Find attendance request by date and time type
+   - Automated approval workflow with email notifications
+
+8. **`hrms_attendance_cancel_admin_tool`** - Admin: Cancel attendance requests
+   - Search employee by name
+   - Find attendance request by date and time type
+   - Automated cancellation workflow with email notifications
+
+All tools are available via:
+- ✅ LangGraph workflow (automatic tool selection)
+- ✅ MCP protocol (external client access)
+- ✅ Natural language chat interface
+
+## MCP Server Integration
+
+The system includes a full MCP (Model Context Protocol) server implementation that exposes all HRMS tools for external access.
+
+### Features
+- **8 HRMS Tools Exposed**: All employee and admin tools available via MCP
+- **Dual Transport Modes**: STDIO (internal) and HTTP (external)
+- **REST API Discovery**: `/api/v1/mcp/tools` endpoint for tool listing
+- **Standard Protocol**: Compatible with any MCP client
+
+### Configuration
+See [mcp_server/README.md](mcp_server/README.md) for detailed MCP setup and usage instructions.
+
 ## Additional Resources
 
 - [DOCKER.md](DOCKER.md) - Detailed Docker setup instructions
-- [.github/workflows/README.md](.github/workflows/README.md) - CI/CD pipeline documentation
+- [mcp_server/README.md](mcp_server/README.md) - MCP server documentation
 - [app/workflows/PROMPTS_GUIDE.md](app/workflows/PROMPTS_GUIDE.md) - Prompt configuration guide
+- [EMPLOYEE_CONTEXT_FLOW.md](EMPLOYEE_CONTEXT_FLOW.md) - Employee context flow documentation
+- [tests/TEST_SUMMARY.md](tests/TEST_SUMMARY.md) - Test suite documentation
 
 ## License
 
