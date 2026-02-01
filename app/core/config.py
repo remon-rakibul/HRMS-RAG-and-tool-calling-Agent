@@ -36,6 +36,7 @@ class Settings(BaseSettings):
     MCP_SERVER_URL: str = "http://0.0.0.0:8001/mcp"  # URL for HTTP transport
     MCP_SERVER_PORT: int = 8001  # Port for HTTP transport
     MCP_EXTERNAL_SERVERS: List[Dict[str, Any]] = []  # List of dicts with server configs: [{"name": "server1", "transport": "stdio", "command": "python", "args": [...]}]
+    USE_NATIVE_TOOLS: bool = True  # Set to False to use MCP tools only, True for native LangGraph tools
     
     def __init__(self, **kwargs):
         """Initialize settings with validation."""

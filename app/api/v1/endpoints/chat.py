@@ -7,7 +7,7 @@ import uuid
 from app.api.dependencies import get_current_user
 from app.core.database import get_db, SessionLocal
 from app.models.database import User
-from app.models.schemas import ChatRequest
+from app.models.schemas import ChatRequest, ResumeRequest
 from app.services.chat_service import get_chat_service
 from app.services.history_service import get_history_service
 
@@ -98,6 +98,80 @@ async def chat(
                         role="assistant",
                         content=chunk.get("content", full_response)
                     )
+                    yield f"data: {json.dumps(chunk)}\n\n"
+                elif chunk["type"] == "interrupt":
+                    # HITL interrupt - send to frontend for approval
+                    yield f"data: {json.dumps(chunk)}\n\n"
+                elif chunk["type"] == "error":
+                    yield f"data: {json.dumps(chunk)}\n\n"
+        finally:
+            async_db.close()
+    
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+        }
+    )
+
+
+@router.post("/resume", response_class=StreamingResponse)
+async def resume_chat(
+    request: ResumeRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Resume an interrupted chat conversation with user's response.
+    
+    This endpoint is used to continue a conversation that was paused by a HITL interrupt.
+    The user's approval/rejection decision is passed via resume_data.
+    """
+    chat_service = get_chat_service()
+    
+    # Extract user_id
+    user_id = current_user.id
+    
+    # Get employee_id from session
+    employee_id = None
+    if request.session_id:
+        from app.models.agent_session import get_session, refresh_session
+        session_context = get_session(db=db, session_id=request.session_id)
+        if session_context:
+            employee_id = session_context.employee_id
+            refresh_session(db=db, session_id=request.session_id, ttl_hours=24)
+            print(f"[Resume] Session found: employee_id={employee_id} - session refreshed", flush=True)
+        else:
+            print(f"[Resume] Warning: session_id '{request.session_id}' not found or expired", flush=True)
+    
+    async def generate():
+        """Generate streaming response for resume (fully async)."""
+        async_db = SessionLocal()
+        try:
+            async_history_service = get_history_service(async_db)
+            full_response = ""
+            
+            async for chunk in chat_service.stream_resume(
+                thread_id=request.thread_id,
+                resume_data=request.resume_data,
+                user_id=user_id,
+                employee_id=employee_id
+            ):
+                if chunk["type"] == "token":
+                    full_response += chunk.get("content", "")
+                    yield f"data: {json.dumps(chunk)}\n\n"
+                elif chunk["type"] == "done":
+                    # Save assistant response
+                    if full_response.strip():
+                        async_history_service.add_message(
+                            thread_id=request.thread_id,
+                            role="assistant",
+                            content=chunk.get("content", full_response)
+                        )
+                    yield f"data: {json.dumps(chunk)}\n\n"
+                elif chunk["type"] == "interrupt":
+                    # Nested interrupt (multi-step approval)
                     yield f"data: {json.dumps(chunk)}\n\n"
                 elif chunk["type"] == "error":
                     yield f"data: {json.dumps(chunk)}\n\n"

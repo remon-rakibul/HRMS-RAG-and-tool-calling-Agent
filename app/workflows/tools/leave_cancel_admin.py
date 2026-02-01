@@ -11,6 +11,8 @@ import httpx
 import urllib3
 import json
 from app.workflows.tools import tool_registry
+from app.workflows.prompt_loader import should_require_approval
+from langgraph.types import interrupt
 
 # Suppress SSL warnings for self-signed certificates
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -441,6 +443,46 @@ def cancel_leave_for_employee(
         print(f"[HRMS Admin] Found leave request ID: {employee_leave_request_id}", flush=True)
         print(f"[HRMS Admin] Leave Type ID: {leave_type_id}", flush=True)
         print("-" * 70, flush=True)
+        
+        # Get additional details for display
+        applied_from = _extract_date_from_datetime(matched_leave.get("appliedFromDate") or matched_leave.get("AppliedFromDate") or "")
+        applied_to = _extract_date_from_datetime(matched_leave.get("appliedToDate") or matched_leave.get("AppliedToDate") or "")
+        leave_purpose = matched_leave.get("leavePurpose") or matched_leave.get("LeavePurpose") or "Not specified"
+        leave_type_name = matched_leave.get("leaveTypeName") or matched_leave.get("LeaveTypeName") or f"Type ID: {leave_type_id}"
+        total_days = matched_leave.get("appliedTotalDays") or matched_leave.get("AppliedTotalDays") or "Unknown"
+        
+        # HITL: Request confirmation before cancellation
+        if should_require_approval("cancel_leave_for_employee"):
+            print("[HRMS Admin] HITL: Requesting cancellation confirmation...", flush=True)
+            
+            confirmation = interrupt({
+                "action": "leave_cancellation",
+                "message": "Please confirm you want to cancel this leave request:",
+                "details": {
+                    "employee": found_name,
+                    "employee_id": employee_id,
+                    "leave_period": f"{applied_from} to {applied_to}",
+                    "days": total_days,
+                    "leave_type": leave_type_name,
+                    "reason": leave_purpose
+                },
+                "editable_fields": ["remarks"],
+                "current_values": {
+                    "remarks": remarks
+                },
+                "options": ["approve", "reject"]
+            })
+            
+            if confirmation.get("action") != "approve":
+                print("[HRMS Admin] HITL: Leave cancellation rejected by admin", flush=True)
+                return "❌ Leave cancellation cancelled."
+            
+            # Use potentially edited remarks
+            if confirmation.get("remarks"):
+                remarks = confirmation["remarks"]
+                print(f"[HRMS Admin] HITL: Remarks updated to: {remarks}", flush=True)
+            
+            print("[HRMS Admin] HITL: Leave cancellation confirmed by admin", flush=True)
         
     except httpx.TimeoutException:
         return "❌ Request timeout while retrieving leave requests. Please try again."

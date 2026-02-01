@@ -11,6 +11,9 @@ import httpx
 import urllib3
 import json
 from app.workflows.tools import tool_registry
+from app.workflows.prompt_loader import should_require_approval
+from langgraph.types import interrupt
+from langgraph.errors import GraphInterrupt
 
 # Suppress SSL warnings for self-signed certificates
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -473,6 +476,52 @@ def approve_attendance_for_employee(
         print(f"[HRMS Admin] Found attendance request ID: {manual_attendance_id}", flush=True)
         print("-" * 70, flush=True)
         
+        # Get additional details for display
+        attendance_reason = matched_attendance.get("reason") or matched_attendance.get("Reason") or "Not specified"
+        in_time = matched_attendance.get("inTime") or matched_attendance.get("InTime") or ""
+        out_time = matched_attendance.get("outTime") or matched_attendance.get("OutTime") or ""
+        
+        # HITL: Request confirmation before approval
+        if should_require_approval("approve_attendance_for_employee"):
+            print("[HRMS Admin] HITL: Requesting attendance approval confirmation...", flush=True)
+            
+            details = {
+                "employee": found_name,
+                "employee_id": employee_id,
+                "date": formatted_date,
+                "time_request_for": normalized_time,
+                "reason": attendance_reason
+            }
+            if in_time:
+                details["in_time"] = in_time
+            if out_time:
+                details["out_time"] = out_time
+            
+            confirmation = interrupt({
+                "action": "attendance_approval",
+                "message": "Please confirm you want to approve this attendance request:",
+                "details": details,
+                "editable_fields": ["remarks"],
+                "current_values": {
+                    "remarks": remarks
+                },
+                "options": ["approve", "reject"]
+            })
+            
+            if confirmation.get("action") != "approve":
+                print("[HRMS Admin] HITL: Attendance approval rejected by admin", flush=True)
+                return "❌ Attendance approval cancelled."
+            
+            # Use potentially edited remarks
+            if confirmation.get("remarks"):
+                remarks = confirmation["remarks"]
+                print(f"[HRMS Admin] HITL: Remarks updated to: {remarks}", flush=True)
+            
+            print("[HRMS Admin] HITL: Attendance approval confirmed by admin", flush=True)
+        
+    except GraphInterrupt:
+        # Re-raise interrupt exceptions - they're part of HITL flow
+        raise
     except httpx.TimeoutException:
         return "❌ Request timeout while retrieving attendance requests. Please try again."
     except httpx.RequestError as e:
@@ -569,6 +618,9 @@ def approve_attendance_for_employee(
         
         return success_msg
         
+    except GraphInterrupt:
+        # Re-raise interrupt exceptions - they're part of HITL flow
+        raise
     except httpx.TimeoutException:
         return "❌ Request timeout. The HRMS system may be slow. Please try again."
     except httpx.RequestError as e:

@@ -1,15 +1,27 @@
-/** Message list component */
+/** Message list component with HITL interrupt support */
 
 import { useEffect, useRef } from 'react';
 import type { Message } from '../hooks/useChat';
+import { ApprovalCard } from './ApprovalCard';
+import { MarkdownContent } from './MarkdownContent';
 
 interface MessageListProps {
   messages: Message[];
   isStreaming: boolean;
+  isAwaitingApproval?: boolean;
+  onApprove?: (data: Record<string, any>) => void;
+  onReject?: () => void;
   isDark?: boolean;
 }
 
-export const MessageList = ({ messages, isStreaming }: MessageListProps) => {
+export const MessageList = ({ 
+  messages, 
+  isStreaming,
+  isAwaitingApproval: _isAwaitingApproval = false,
+  onApprove,
+  onReject,
+}: MessageListProps) => {
+  // isAwaitingApproval is available via _isAwaitingApproval if needed for future use
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom when new messages arrive
@@ -32,6 +44,21 @@ export const MessageList = ({ messages, isStreaming }: MessageListProps) => {
       ) : (
         <>
           {messages.map((message, index) => {
+            // Handle interrupt messages specially - render ApprovalCard
+            if (message.role === 'interrupt' && message.interruptData) {
+              return (
+                <div key={message.id} className="flex justify-center my-4">
+                  <ApprovalCard
+                    interruptData={message.interruptData}
+                    onApprove={(data) => onApprove?.(data)}
+                    onReject={() => onReject?.()}
+                    disabled={isStreaming || message.interruptData.resolved}
+                  />
+                </div>
+              );
+            }
+
+            // Regular user/assistant messages
             const isUser = message.role === 'user';
             const showAvatar = index === 0 || messages[index - 1].role !== message.role;
             
@@ -69,9 +96,15 @@ export const MessageList = ({ messages, isStreaming }: MessageListProps) => {
                       : 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 border border-gray-200 dark:border-gray-700 rounded-bl-sm'
                   }`}
                 >
-                  <div className="whitespace-pre-wrap break-words text-sm leading-relaxed">
-                    {message.content}
-                  </div>
+                  {isUser ? (
+                    // User messages: plain text
+                    <div className="whitespace-pre-wrap break-words text-sm leading-relaxed">
+                      {message.content}
+                    </div>
+                  ) : (
+                    // Assistant messages: markdown rendered
+                    <MarkdownContent content={message.content} />
+                  )}
                   {!isUser && isStreaming && message.id === messages[messages.length - 1]?.id && (
                     <span className="inline-block w-2 h-4 bg-gray-400 dark:bg-gray-500 animate-pulse ml-1.5 mt-1"></span>
                   )}
@@ -85,4 +118,3 @@ export const MessageList = ({ messages, isStreaming }: MessageListProps) => {
     </div>
   );
 };
-

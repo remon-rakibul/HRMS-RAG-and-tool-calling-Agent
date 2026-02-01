@@ -98,11 +98,36 @@ class ChatRequest(BaseModel):
     session_id: Optional[str] = Field(default=None, description="HRMS session ID from session-init")
 
 
+class ResumeRequest(BaseModel):
+    """Resume request schema for continuing interrupted conversations."""
+    thread_id: str = Field(..., description="Thread ID of the interrupted conversation")
+    session_id: Optional[str] = Field(default=None, description="HRMS session ID from session-init")
+    resume_data: dict = Field(..., description="User's response to the interrupt: {'action': 'approve'|'reject'|..., ...}")
+
+
+class InterruptPayload(BaseModel):
+    """Interrupt payload for human-in-the-loop interactions."""
+    action: str = Field(..., description="Type of interrupt: 'leave_application', 'verify_employee', 'document_review', 'validate_input', 'tool_approval'")
+    message: str = Field(..., description="Human-readable message describing what approval is needed")
+    step: Optional[int] = Field(default=None, description="Current step number for multi-step approvals")
+    total_steps: Optional[int] = Field(default=None, description="Total steps for multi-step approvals")
+    details: Optional[dict] = Field(default=None, description="Action-specific details to display")
+    pending_actions: Optional[List[dict]] = Field(default=None, description="List of pending tool calls for node-level approval")
+    documents: Optional[str] = Field(default=None, description="Retrieved documents for review")
+    document_count: Optional[int] = Field(default=None, description="Number of retrieved documents")
+    current_values: Optional[dict] = Field(default=None, description="Current field values for editing")
+    editable_fields: Optional[List[str]] = Field(default=None, description="Fields that can be edited")
+    validation_errors: Optional[List[str]] = Field(default=None, description="Validation errors to display")
+    question: Optional[str] = Field(default=None, description="Specific question to ask the user")
+    options: Optional[List[str]] = Field(default=None, description="Available actions: 'approve', 'reject', 'edit', 'confirm', 'cancel', 'use_all', 'add_context', 'reject_all'")
+
+
 class ChatMessageResponse(BaseModel):
     """Chat message response schema."""
-    type: str  # 'token', 'done', 'error'
+    type: str  # 'token', 'done', 'error', 'interrupt'
     content: Optional[str] = None
     thread_id: Optional[str] = None
+    interrupt_data: Optional[InterruptPayload] = Field(default=None, description="Interrupt payload when type='interrupt'")
 
 
 class ChatThreadResponse(BaseModel):

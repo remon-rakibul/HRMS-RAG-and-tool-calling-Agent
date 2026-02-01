@@ -6,8 +6,17 @@ from langchain_classic.tools.retriever import create_retriever_tool
 from langchain_core.tools import BaseTool
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from psycopg_pool import AsyncConnectionPool
-from app.workflows.nodes import create_workflow_nodes
-from app.workflows.prompt_loader import get_retriever_tool_config
+from app.workflows.nodes import (
+    create_workflow_nodes,
+    create_human_approval_node,
+    create_document_review_node,
+    SENSITIVE_TOOLS
+)
+from app.workflows.prompt_loader import (
+    get_retriever_tool_config,
+    should_use_node_level_gate,
+    should_review_documents
+)
 from app.workflows.tools import get_all_tools
 from app.core.config import settings
 from app.utils.db_uri import normalize_db_uri_for_asyncpg
@@ -63,31 +72,87 @@ def build_rag_graph(
     # Build workflow graph
     workflow = StateGraph(MessagesState)
     
+    # Check if HITL node-level features are enabled
+    use_node_gate = should_use_node_level_gate()
+    use_doc_review = should_review_documents()
+    
     # Add nodes
     workflow.add_node("generate_query_or_respond", nodes["generate_query_or_respond"])
     workflow.add_node("tools", ToolNode(all_tools))  # ToolNode handles ALL tools
     workflow.add_node("rewrite_question", nodes["rewrite_question"])
     workflow.add_node("generate_answer", nodes["generate_answer"])
     
+    # Add HITL nodes if enabled
+    if use_node_gate:
+        workflow.add_node("human_approval", create_human_approval_node(SENSITIVE_TOOLS))
+    
+    if use_doc_review:
+        workflow.add_node("document_review", create_document_review_node())
+    
     # Add edges
     workflow.add_edge(START, "generate_query_or_respond")
     
-    # Conditional edge: decide whether to use tools
-    workflow.add_conditional_edges(
-        "generate_query_or_respond",
-        tools_condition,
-        {
-            "tools": "tools",  # Route to unified tools node
-            END: END,
-        },
-    )
+    # Conditional edge: decide whether to use tools (with optional approval gate)
+    if use_node_gate:
+        # Route through approval node before tools
+        def _route_with_approval(state):
+            """Route to approval node or end based on tools_condition."""
+            from langgraph.prebuilt import tools_condition as tc
+            result = tc(state)
+            if result == "tools":
+                return "human_approval"
+            return result
+        
+        workflow.add_conditional_edges(
+            "generate_query_or_respond",
+            _route_with_approval,
+            {
+                "human_approval": "human_approval",
+                END: END,
+            },
+        )
+        # Human approval node routes to tools or back to generate
+        # (handled by Command in the node itself)
+        workflow.add_edge("human_approval", "tools")
+    else:
+        workflow.add_conditional_edges(
+            "generate_query_or_respond",
+            tools_condition,
+            {
+                "tools": "tools",  # Route to unified tools node
+                END: END,
+            },
+        )
     
     # After tools: route based on which tool was called
-    # If retriever was used, grade documents; otherwise go to generate_answer
-    workflow.add_conditional_edges(
-        "tools",
-        nodes["route_after_tools"],
-    )
+    # If retriever was used, optionally go through document review, then grade/answer
+    if use_doc_review:
+        def _route_after_tools_with_review(state):
+            """Route after tools, optionally through document review."""
+            result = nodes["route_after_tools"](state)
+            # If going to generate_answer and retriever was used, go through review
+            if result == "generate_answer":
+                # Check if the last tool was retriever
+                messages = state["messages"]
+                for msg in reversed(messages):
+                    msg_type = getattr(msg, 'type', None) or (msg.get('type') if isinstance(msg, dict) else None)
+                    msg_name = getattr(msg, 'name', None) or (msg.get('name') if isinstance(msg, dict) else None)
+                    if msg_type == "tool" and msg_name == "retrieve_documents":
+                        return "document_review"
+                    if msg_type == "tool":
+                        break  # Found a different tool, don't review
+            return result
+        
+        workflow.add_conditional_edges(
+            "tools",
+            _route_after_tools_with_review,
+        )
+        workflow.add_edge("document_review", "generate_answer")
+    else:
+        workflow.add_conditional_edges(
+            "tools",
+            nodes["route_after_tools"],
+        )
     
     workflow.add_edge("generate_answer", END)
     workflow.add_edge("rewrite_question", "generate_query_or_respond")

@@ -14,6 +14,8 @@ import urllib3
 import json
 from app.workflows.tools import tool_registry
 from app.workflows.context import get_employee_id
+from app.workflows.prompt_loader import should_require_approval
+from langgraph.types import interrupt
 
 # Suppress SSL warnings for self-signed certificates
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -272,6 +274,43 @@ def apply_for_manual_attendance(
         print(f"[HRMS] Out-Time: {formatted_out_time}", flush=True)
     print(f"[HRMS] Reason: {reason}", flush=True)
     print("-" * 70, flush=True)
+    
+    # HITL: Request confirmation before submitting attendance request
+    if should_require_approval("apply_attendance"):
+        print("[HRMS] HITL: Requesting attendance confirmation...", flush=True)
+        
+        details = {
+            "employee_id": employee_id,
+            "date": formatted_date.split("T")[0],
+            "time_request_for": time_request_for,
+            "reason": reason
+        }
+        if formatted_in_time:
+            details["in_time"] = formatted_in_time
+        if formatted_out_time:
+            details["out_time"] = formatted_out_time
+        
+        confirmation = interrupt({
+            "action": "attendance_application",
+            "message": "Please confirm this manual attendance request before submitting:",
+            "details": details,
+            "editable_fields": ["reason"],
+            "current_values": {
+                "reason": reason
+            },
+            "options": ["approve", "reject"]
+        })
+        
+        if confirmation.get("action") == "reject":
+            print("[HRMS] HITL: User rejected attendance application", flush=True)
+            return "❌ Manual attendance application cancelled by user."
+        
+        # Apply any edits from user
+        if confirmation.get("reason"):
+            reason = confirmation["reason"]
+            print(f"[HRMS] HITL: Reason updated to: {reason}", flush=True)
+        
+        print("[HRMS] HITL: User approved attendance application", flush=True)
     
     # Step 1: Authenticate
     token = _get_hrms_token()

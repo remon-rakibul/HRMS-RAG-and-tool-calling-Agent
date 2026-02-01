@@ -11,6 +11,8 @@ import httpx
 import urllib3
 import json
 from app.workflows.tools import tool_registry
+from app.workflows.prompt_loader import should_require_approval
+from langgraph.types import interrupt
 
 # Suppress SSL warnings for self-signed certificates
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -300,6 +302,48 @@ def apply_leave_for_employee(
     
     print(f"[HRMS Admin] Leave Period: {from_date} to {to_date} ({total_days} days)", flush=True)
     print("-" * 70, flush=True)
+    
+    # Map leave_type_id to human-readable name
+    leave_type_names = {
+        2: "Sick Leave",
+        6: "Annual Leave",
+        15: "Casual Leave"
+    }
+    leave_type_name = leave_type_names.get(leave_type_id, f"Leave Type {leave_type_id}")
+    
+    # HITL: Request confirmation before applying leave for employee
+    if should_require_approval("apply_leave_for_employee"):
+        print("[HRMS Admin] HITL: Requesting leave application confirmation...", flush=True)
+        
+        confirmation = interrupt({
+            "action": "admin_leave_application",
+            "message": "Please confirm this leave application on behalf of the employee:",
+            "details": {
+                "employee": found_name,
+                "employee_id": employee_id,
+                "leave_type": leave_type_name,
+                "period": f"{from_date} to {to_date}",
+                "days": total_days,
+                "day_type": day_leave_type + (f" ({half_day_type})" if half_day_type else ""),
+                "reason": reason
+            },
+            "editable_fields": ["reason"],
+            "current_values": {
+                "reason": reason
+            },
+            "options": ["approve", "reject"]
+        })
+        
+        if confirmation.get("action") == "reject":
+            print("[HRMS Admin] HITL: Admin leave application rejected", flush=True)
+            return "❌ Leave application cancelled."
+        
+        # Apply any edits from user
+        if confirmation.get("reason"):
+            reason = confirmation["reason"]
+            print(f"[HRMS Admin] HITL: Reason updated to: {reason}", flush=True)
+        
+        print("[HRMS Admin] HITL: Admin leave application confirmed", flush=True)
     
     try:
         # Endpoint 1: GetEmployeeServiceData (already called for search, but call again as per workflow)

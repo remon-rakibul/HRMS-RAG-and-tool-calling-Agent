@@ -16,7 +16,16 @@ export const ChatInterface = () => {
   const { isDark, toggle: toggleDarkMode } = useDarkMode();
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const { employeeId, sessionId, isLoading: sessionLoading, error: sessionError } = useSession();
-  const { messages, isStreaming, error: chatError, sendMessage, clearMessages } = useChat(
+  const { 
+    messages, 
+    isStreaming, 
+    isAwaitingApproval,
+    error: chatError, 
+    sendMessage, 
+    resumeWithResponse,
+    clearMessages,
+    clearError,
+  } = useChat(
     employeeId?.toString() || null,
     sessionId || null
   );
@@ -78,6 +87,16 @@ export const ChatInterface = () => {
     }
   };
 
+  // Handle HITL approval
+  const handleApprove = async (data: Record<string, any>) => {
+    await resumeWithResponse(data);
+  };
+
+  // Handle HITL rejection
+  const handleReject = async () => {
+    await resumeWithResponse({ action: 'reject', approved: false });
+  };
+
   if (authLoading || sessionLoading) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
@@ -136,7 +155,7 @@ export const ChatInterface = () => {
           <div className="flex items-center gap-2">
             <button
               onClick={handleNewChat}
-              disabled={isDeleting || isStreaming}
+              disabled={isDeleting || isStreaming || isAwaitingApproval}
               className="p-2 text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
               title="Start a new chat"
             >
@@ -157,9 +176,27 @@ export const ChatInterface = () => {
 
       {/* Error Display */}
       {chatError && (
-        <div className="bg-red-100 dark:bg-red-900/30 border-l-4 border-red-500 dark:border-red-400 text-red-700 dark:text-red-300 p-2">
-          <p className="font-bold text-sm">Error</p>
-          <p className="text-sm">{chatError}</p>
+        <div className="bg-red-100 dark:bg-red-900/30 border-l-4 border-red-500 dark:border-red-400 text-red-700 dark:text-red-300 p-2 flex items-center justify-between">
+          <div>
+            <p className="font-bold text-sm">Error</p>
+            <p className="text-sm">{chatError}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            {(chatError.includes('expired') || chatError.includes('401') || chatError.includes('refresh')) && (
+              <button
+                onClick={() => window.location.reload()}
+                className="px-3 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+              >
+                Refresh Page
+              </button>
+            )}
+            <button
+              onClick={() => clearError()}
+              className="px-2 py-1 text-xs text-red-600 dark:text-red-400 hover:underline"
+            >
+              Dismiss
+            </button>
+          </div>
         </div>
       )}
 
@@ -169,11 +206,26 @@ export const ChatInterface = () => {
           <LoadingSpinner />
         </div>
       ) : (
-        <MessageList messages={displayMessages} isStreaming={isStreaming} />
+        <MessageList 
+          messages={displayMessages} 
+          isStreaming={isStreaming}
+          isAwaitingApproval={isAwaitingApproval}
+          onApprove={handleApprove}
+          onReject={handleReject}
+        />
+      )}
+
+      {/* Approval pending banner */}
+      {isAwaitingApproval && (
+        <div className="bg-amber-100 dark:bg-amber-900/30 border-t border-amber-300 dark:border-amber-700 px-4 py-2 text-center">
+          <span className="text-amber-800 dark:text-amber-200 text-sm font-medium">
+            Waiting for your approval before proceeding...
+          </span>
+        </div>
       )}
 
       {/* Input */}
-      <MessageInput onSend={sendMessage} disabled={isStreaming} />
+      <MessageInput onSend={sendMessage} disabled={isStreaming || isAwaitingApproval} />
     </div>
   );
 };

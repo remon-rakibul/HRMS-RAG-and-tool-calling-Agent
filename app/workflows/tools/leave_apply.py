@@ -19,6 +19,8 @@ import urllib3
 import json
 from app.workflows.tools import tool_registry
 from app.workflows.context import get_employee_id
+from app.workflows.prompt_loader import should_require_approval
+from langgraph.types import interrupt
 
 # Suppress SSL warnings for self-signed certificates
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -209,6 +211,63 @@ def apply_for_leave(
     print(f"[HRMS] Leave Period: {from_date} to {to_date} ({total_days} days)", flush=True)
     print(f"[HRMS] Reason: {reason}", flush=True)
     print("-" * 70, flush=True)
+    
+    # Map leave_type_id to human-readable name
+    leave_type_names = {
+        2: "Sick Leave",
+        6: "Annual Leave",
+        15: "Casual Leave"
+    }
+    leave_type_name = leave_type_names.get(leave_type_id, f"Leave Type {leave_type_id}")
+    
+    # HITL: Request human confirmation before proceeding with API calls
+    if should_require_approval("apply_for_leave"):
+        print("[HRMS] HITL: Requesting user confirmation...", flush=True)
+        
+        confirmation = interrupt({
+            "action": "leave_application",
+            "message": "Please confirm this leave application before submitting:",
+            "details": {
+                "employee_id": employee_id,
+                "leave_type": leave_type_name,
+                "period": f"{from_date} to {to_date}",
+                "days": total_days,
+                "day_type": day_leave_type + (f" ({half_day_type})" if half_day_type else ""),
+                "reason": reason
+            },
+            "editable_fields": ["reason", "total_days"],
+            "current_values": {
+                "reason": reason,
+                "total_days": total_days
+            },
+            "options": ["approve", "reject", "edit"]
+        })
+        
+        # Handle user's response
+        user_action = confirmation.get("action", "reject")
+        
+        if user_action == "reject":
+            print("[HRMS] HITL: User rejected leave application", flush=True)
+            return "❌ Leave application cancelled by user."
+        
+        # Apply any edits from user
+        if confirmation.get("reason"):
+            reason = confirmation["reason"]
+            print(f"[HRMS] HITL: Reason updated to: {reason}", flush=True)
+        
+        if confirmation.get("total_days"):
+            try:
+                new_days = int(confirmation["total_days"])
+                if new_days > 0:
+                    total_days = new_days
+                    # Recalculate end date
+                    to_dt = from_dt + timedelta(days=total_days - 1)
+                    to_date = to_dt.strftime("%Y-%m-%d")
+                    print(f"[HRMS] HITL: Days updated to: {total_days}, new end date: {to_date}", flush=True)
+            except (ValueError, TypeError):
+                pass  # Keep original value
+        
+        print("[HRMS] HITL: User approved leave application", flush=True)
     
     # Step 1: Authenticate
     token = _get_hrms_token()

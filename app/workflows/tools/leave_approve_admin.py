@@ -11,6 +11,9 @@ import httpx
 import urllib3
 import json
 from app.workflows.tools import tool_registry
+from app.workflows.prompt_loader import should_require_approval, should_use_multi_step
+from langgraph.types import interrupt
+from langgraph.errors import GraphInterrupt
 
 # Suppress SSL warnings for self-signed certificates
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -358,6 +361,29 @@ def approve_leave_for_employee(
     print(f"[HRMS Admin] Using Employee ID: {employee_id}", flush=True)
     print("-" * 70, flush=True)
     
+    # HITL Step 1: Verify correct employee (multi-step approval)
+    if should_use_multi_step("approve_leave_for_employee"):
+        print("[HRMS Admin] HITL Step 1: Requesting employee verification...", flush=True)
+        
+        verification = interrupt({
+            "action": "verify_employee",
+            "step": 1,
+            "total_steps": 2,
+            "message": f"Found employee: {found_name} (ID: {employee_id})",
+            "question": "Is this the correct employee?",
+            "details": {
+                "employee_id": employee_id,
+                "employee_name": found_name
+            },
+            "options": ["confirm", "reject"]
+        })
+        
+        if verification.get("action") != "confirm":
+            print("[HRMS Admin] HITL: Employee verification rejected", flush=True)
+            return "❌ Employee verification cancelled. Please provide a more specific name."
+        
+        print("[HRMS Admin] HITL: Employee verified by user", flush=True)
+    
     # Format applied_date
     formatted_date = _format_datetime(applied_date)
     try:
@@ -465,6 +491,49 @@ def approve_leave_for_employee(
         print(f"[HRMS Admin] Leave period: {applied_from_date} to {applied_to_date}", flush=True)
         print("-" * 70, flush=True)
         
+        # Get additional details from matched_leave for display
+        leave_purpose = matched_leave.get("leavePurpose") or matched_leave.get("LeavePurpose") or "Not specified"
+        leave_type_name = matched_leave.get("leaveTypeName") or matched_leave.get("LeaveTypeName") or f"Type ID: {leave_type_id}"
+        total_days = matched_leave.get("appliedTotalDays") or matched_leave.get("AppliedTotalDays") or "Unknown"
+        
+        # HITL Step 2: Confirm leave approval details (multi-step approval)
+        if should_use_multi_step("approve_leave_for_employee"):
+            print("[HRMS Admin] HITL Step 2: Requesting approval confirmation...", flush=True)
+            
+            final_approval = interrupt({
+                "action": "confirm_leave_approval",
+                "step": 2,
+                "total_steps": 2,
+                "message": "Please confirm leave approval details:",
+                "details": {
+                    "employee": found_name,
+                    "employee_id": employee_id,
+                    "leave_period": f"{applied_from_date} to {applied_to_date}",
+                    "days": total_days,
+                    "leave_type": leave_type_name,
+                    "reason": leave_purpose
+                },
+                "editable_fields": ["remarks"],
+                "current_values": {
+                    "remarks": remarks
+                },
+                "options": ["approve", "reject"]
+            })
+            
+            if final_approval.get("action") != "approve":
+                print("[HRMS Admin] HITL: Leave approval rejected by admin", flush=True)
+                return "❌ Leave approval cancelled."
+            
+            # Use potentially edited remarks
+            if final_approval.get("remarks"):
+                remarks = final_approval["remarks"]
+                print(f"[HRMS Admin] HITL: Remarks updated to: {remarks}", flush=True)
+            
+            print("[HRMS Admin] HITL: Leave approval confirmed by admin", flush=True)
+        
+    except GraphInterrupt:
+        # Re-raise interrupt exceptions - they're part of HITL flow
+        raise
     except httpx.TimeoutException:
         return "❌ Request timeout while retrieving leave requests. Please try again."
     except httpx.RequestError as e:
@@ -594,6 +663,9 @@ def approve_leave_for_employee(
         
         return success_msg
         
+    except GraphInterrupt:
+        # Re-raise interrupt exceptions - they're part of HITL flow
+        raise
     except httpx.TimeoutException:
         return "❌ Request timeout. The HRMS system may be slow. Please try again."
     except httpx.RequestError as e:
