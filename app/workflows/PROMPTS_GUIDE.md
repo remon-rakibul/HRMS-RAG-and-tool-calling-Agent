@@ -140,6 +140,66 @@ uvicorn app.main:app --reload
 - **name**: Tool name shown to LLM
 - **description**: How LLM decides when to use retrieval
 
+## Human-in-the-Loop (HITL) Configuration
+
+```json
+{
+  "hitl_settings": {
+    "enabled": true,
+    "require_approval_for": [
+      "apply_for_leave",
+      "approve_leave_for_employee",
+      "cancel_leave_for_employee",
+      "apply_for_attendance",
+      "approve_attendance_for_employee",
+      "cancel_attendance_for_employee",
+      "apply_leave_for_employee"
+    ],
+    "multi_step_approval_for": [
+      "approve_leave_for_employee",
+      "approve_attendance_for_employee"
+    ],
+    "review_documents": false,
+    "validate_inputs": true,
+    "use_node_level_gate": false,
+    "timeout_seconds": 300
+  }
+}
+```
+
+### HITL Settings Explained
+
+| Setting | Type | Default | Description |
+|---------|------|---------|-------------|
+| `enabled` | boolean | `true` | Master switch for all HITL features |
+| `require_approval_for` | array | [...] | Tool names that require user approval before execution |
+| `multi_step_approval_for` | array | [...] | Tools requiring multi-step verification (e.g., verify employee first) |
+| `review_documents` | boolean | `false` | Show retrieved documents for user review before answering |
+| `validate_inputs` | boolean | `true` | Validate tool inputs before execution |
+| `use_node_level_gate` | boolean | `false` | Require approval before entering tools node (graph-level) |
+| `timeout_seconds` | number | `300` | Auto-reject after timeout (5 minutes) |
+
+### Disabling HITL
+
+To disable all HITL features:
+```json
+{
+  "hitl_settings": {
+    "enabled": false
+  }
+}
+```
+
+To disable HITL for a specific tool, remove it from `require_approval_for`.
+
+### Adding HITL to New Tools
+
+1. Add the tool name to `require_approval_for`
+2. If multi-step needed, also add to `multi_step_approval_for`
+3. Implement `interrupt()` in the tool (see [HITL_GUIDE.md](HITL_GUIDE.md))
+
+For detailed HITL implementation, see [HITL_GUIDE.md](HITL_GUIDE.md)
+
 ## Example Modifications
 
 ### Make Answers More Detailed
@@ -221,6 +281,8 @@ Currently requires server restart. Future versions may support hot reload.
 
 ## Code Usage
 
+### Prompt Functions
+
 ```python
 from app.workflows.prompt_loader import get_prompt, get_system_message
 
@@ -229,6 +291,38 @@ prompt = get_prompt("generate_answer", question="...", context="...")
 
 # Get system message
 sys_msg = get_system_message("generate_query_or_respond", current_question="...")
+```
+
+### HITL Functions
+
+```python
+from app.workflows.prompt_loader import (
+    is_hitl_enabled,
+    should_require_approval,
+    should_use_multi_step,
+    should_review_documents,
+    should_validate_inputs,
+    should_use_node_level_gate,
+    get_hitl_timeout
+)
+
+# Check if HITL is globally enabled
+if is_hitl_enabled():
+    print("HITL is enabled")
+
+# Check if a tool requires approval
+if should_require_approval("apply_for_leave"):
+    # Show approval UI
+    pass
+
+# Check if tool needs multi-step approval
+if should_use_multi_step("approve_leave_for_employee"):
+    # Step 1: Verify employee
+    # Step 2: Confirm action
+    pass
+
+# Get HITL timeout
+timeout = get_hitl_timeout()  # Returns 300 (seconds)
 ```
 
 ## File Format

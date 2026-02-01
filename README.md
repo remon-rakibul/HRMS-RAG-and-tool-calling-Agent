@@ -14,16 +14,16 @@ Production-ready FastAPI backend for an agentic AI-powered HRMS system with Lang
 
 ### HRMS Integration
 - 🏢 **Employee Self-Service Tools**:
-  - `hrms_leave_apply_tool` - Apply for leave with natural language
-  - `hrms_leave_balance_tool` - Query leave balances instantly
-  - `hrms_attendance_apply_tool` - Apply for manual attendance corrections
-  - `hrms_employee_info_tool` - Get employee personal information
+  - `apply_for_leave` - Apply for leave with natural language (HITL enabled)
+  - `get_leave_balance` - Query leave balances instantly
+  - `apply_for_attendance` - Apply for manual attendance corrections (HITL enabled)
+  - `get_employee_info` - Get employee personal information
 - 👨‍💼 **Admin Tools**:
-  - `hrms_leave_apply_admin_tool` - Admin: Apply leave for employees
-  - `hrms_leave_approve_admin_tool` - Admin: Approve leave requests
-  - `hrms_leave_cancel_admin_tool` - Admin: Cancel leave requests
-  - `hrms_attendance_approve_admin_tool` - Admin: Approve attendance requests
-  - `hrms_attendance_cancel_admin_tool` - Admin: Cancel attendance requests
+  - `apply_leave_for_employee` - Admin: Apply leave for employees (HITL enabled)
+  - `approve_leave_for_employee` - Admin: Approve leave requests (Multi-step HITL)
+  - `cancel_leave_for_employee` - Admin: Cancel leave requests (HITL enabled)
+  - `approve_attendance_for_employee` - Admin: Approve attendance (Multi-step HITL)
+  - `cancel_attendance_for_employee` - Admin: Cancel attendance requests (HITL enabled)
 
 ### Authentication & Security
 - 🔐 JWT-based authentication with refresh tokens
@@ -40,6 +40,13 @@ Production-ready FastAPI backend for an agentic AI-powered HRMS system with Lang
 - 🌐 **HTTP & STDIO Transport**: Support for both transport modes
 - 🔧 **External Tool Access**: Connect external MCP clients to HRMS tools
 - 📡 **REST API Endpoint**: `/api/v1/mcp/tools` for tool discovery
+
+### Human-in-the-Loop (HITL)
+- 🛡️ **Tool-Level Approval**: Pause before executing sensitive actions (leave, attendance)
+- ✅ **Multi-Step Verification**: Two-step approval for admin actions (verify employee → confirm action)
+- ✏️ **Editable Fields**: Users can modify AI-extracted values before submission
+- ⏱️ **Configurable Timeout**: Auto-reject after configurable timeout (default 5 minutes)
+- 🎛️ **Granular Control**: Enable/disable HITL per tool via JSON configuration
 
 ### Additional Features
 - 📜 Chat history with thread management
@@ -147,6 +154,10 @@ For detailed Docker instructions, see [DOCKER.md](DOCKER.md).
   - Supports natural language leave/attendance requests
   - Automatically routes to appropriate HRMS tools
   - Accepts `employee_id` for employee context
+  - Returns `interrupt` events for HITL approval requests
+- `POST /api/v1/chat/resume` - Resume interrupted chat after user approval
+  - Continues workflow execution with user's decision
+  - Supports multi-step approval flows
 - `GET /api/v1/history` - Get chat threads
 - `GET /api/v1/history/{thread_id}` - Get thread messages
 
@@ -325,6 +336,63 @@ The CD pipeline runs on version tags (e.g., `v1.0.0`):
 
 See [.github/workflows/README.md](.github/workflows/README.md) for detailed workflow documentation.
 
+## Human-in-the-Loop (HITL)
+
+The HRMS Agent includes a comprehensive HITL system that pauses execution before sensitive actions and requests human approval.
+
+### How It Works
+
+1. **User makes request**: "Apply for leave tomorrow"
+2. **Agent processes request**: Extracts parameters, prepares tool call
+3. **Agent pauses**: Shows approval card with action details
+4. **User reviews**: Can approve, reject, or edit values
+5. **Agent continues**: Executes action with user's decision
+
+### HITL-Enabled Tools
+
+| Tool | Approval Type | Description |
+|------|--------------|-------------|
+| `apply_for_leave` | Single-step | Shows leave details before submission |
+| `apply_for_attendance` | Single-step | Shows attendance correction details |
+| `apply_leave_for_employee` | Single-step | Admin: Shows leave details for employee |
+| `approve_leave_for_employee` | Multi-step | Admin: 1) Verify employee 2) Confirm approval |
+| `approve_attendance_for_employee` | Multi-step | Admin: 1) Verify employee 2) Confirm approval |
+| `cancel_leave_for_employee` | Single-step | Shows cancellation details |
+| `cancel_attendance_for_employee` | Single-step | Shows cancellation details |
+
+### Configuration
+
+HITL settings are in `app/workflows/prompts.json`:
+
+```json
+{
+  "hitl_settings": {
+    "enabled": true,
+    "require_approval_for": ["apply_for_leave", "approve_leave_for_employee", ...],
+    "multi_step_approval_for": ["approve_leave_for_employee", ...],
+    "timeout_seconds": 300
+  }
+}
+```
+
+### API Flow
+
+```bash
+# 1. Initial request - returns interrupt
+POST /api/v1/chat
+→ SSE: {"type": "interrupt", "interrupt_data": {...}}
+
+# 2. Resume with approval
+POST /api/v1/chat/resume
+{
+  "thread_id": "abc123",
+  "resume_data": {"action": "approve"}
+}
+→ SSE: {"type": "token", "content": "Done! ..."}
+```
+
+For detailed implementation guide, see [app/workflows/HITL_GUIDE.md](app/workflows/HITL_GUIDE.md).
+
 ## Configuration
 
 ### Environment Variables
@@ -381,55 +449,62 @@ See `Dockerfile` and `docker-compose.yml` for containerized deployment.
 ## Available HRMS Tools
 
 ### Employee Self-Service Tools
-1. **`hrms_leave_apply_tool`** - Apply for leave using natural language
+1. **`apply_for_leave`** - Apply for leave using natural language
    - Supports multiple leave types (Annual, Casual, Sick)
    - Full-day and half-day options
    - Automatic date parsing and validation
+   - 🛡️ **HITL**: Shows approval card before submission
 
-2. **`hrms_leave_balance_tool`** - Query leave balances
+2. **`get_leave_balance`** - Query leave balances
    - Instant balance retrieval
    - Multi-leave type support
    - Context-aware (uses logged-in employee ID)
 
-3. **`hrms_attendance_apply_tool`** - Apply for manual attendance
+3. **`apply_for_attendance`** - Apply for manual attendance
    - Flexible time entry (in-time, out-time, or both)
    - Reason validation
    - Automatic date formatting
+   - 🛡️ **HITL**: Shows approval card before submission
 
-4. **`hrms_employee_info_tool`** - Get employee personal information
+4. **`get_employee_info`** - Get employee personal information
    - Retrieve employee details (name, department, designation, branch, etc.)
    - Context-aware (uses logged-in employee ID)
    - Answers questions like "Who am I?", "Where do I work?", "What is my designation?"
 
 ### Admin Tools
-4. **`hrms_leave_apply_admin_tool`** - Admin: Apply leave for employees
+5. **`apply_leave_for_employee`** - Admin: Apply leave for employees
    - Employee search by name
    - Hierarchy validation
    - Automated 18-step leave application workflow
+   - 🛡️ **HITL**: Shows approval card before submission
 
-5. **`hrms_leave_approve_admin_tool`** - Admin: Approve leave requests
+6. **`approve_leave_for_employee`** - Admin: Approve leave requests
    - Search employee by name
    - Find leave request by applied date
    - Automated approval workflow with email notifications
+   - 🛡️ **HITL Multi-Step**: 1) Verify employee 2) Confirm approval
 
-6. **`hrms_leave_cancel_admin_tool`** - Admin: Cancel leave requests
+7. **`cancel_leave_for_employee`** - Admin: Cancel leave requests
    - Search employee by name
    - Find leave request by applied date
    - Automated cancellation workflow with email notifications
+   - 🛡️ **HITL**: Shows approval card before cancellation
 
-7. **`hrms_attendance_approve_admin_tool`** - Admin: Approve attendance requests
+8. **`approve_attendance_for_employee`** - Admin: Approve attendance requests
    - Search employee by name
    - Find attendance request by date and time type
    - Automated approval workflow with email notifications
+   - 🛡️ **HITL Multi-Step**: 1) Verify employee 2) Confirm approval
 
-8. **`hrms_attendance_cancel_admin_tool`** - Admin: Cancel attendance requests
+9. **`cancel_attendance_for_employee`** - Admin: Cancel attendance requests
    - Search employee by name
    - Find attendance request by date and time type
    - Automated cancellation workflow with email notifications
+   - 🛡️ **HITL**: Shows approval card before cancellation
 
 All tools are available via:
-- ✅ LangGraph workflow (automatic tool selection)
-- ✅ MCP protocol (external client access)
+- ✅ LangGraph workflow (automatic tool selection with HITL)
+- ✅ MCP protocol (external client access, no HITL)
 - ✅ Natural language chat interface
 
 ## MCP Server Integration
@@ -450,6 +525,8 @@ See [mcp_server/README.md](mcp_server/README.md) for detailed MCP setup and usag
 - [DOCKER.md](DOCKER.md) - Detailed Docker setup instructions
 - [mcp_server/README.md](mcp_server/README.md) - MCP server documentation
 - [app/workflows/PROMPTS_GUIDE.md](app/workflows/PROMPTS_GUIDE.md) - Prompt configuration guide
+- [app/workflows/HITL_GUIDE.md](app/workflows/HITL_GUIDE.md) - Human-in-the-Loop implementation guide
+- [app/workflows/TOOLS_CONFIG.md](app/workflows/TOOLS_CONFIG.md) - Tool configuration (Native vs MCP)
 - [EMPLOYEE_CONTEXT_FLOW.md](EMPLOYEE_CONTEXT_FLOW.md) - Employee context flow documentation
 - [tests/TEST_SUMMARY.md](tests/TEST_SUMMARY.md) - Test suite documentation
 

@@ -168,12 +168,33 @@ HRMS API (no HITL - direct calls)
 
 | Feature | Native Tools | MCP Tools |
 |---------|--------------|-----------|
-| Tool-level approval | Yes | No* |
-| Multi-step approval | Yes | No* |
-| Input validation | Yes | No* |
-| Document review | Yes | Yes |
+| Tool-level approval | ✅ Yes | ❌ No* |
+| Multi-step approval | ✅ Yes | ❌ No* |
+| Input validation | ✅ Yes | ❌ No* |
+| Document review | ✅ Yes | ✅ Yes |
+| Editable fields | ✅ Yes | ❌ No |
 
-*MCP tools bypass HITL because they are executed in a subprocess that cannot access LangGraph's `interrupt()` function. To add HITL to MCP tools, the tool_exposer would need to be refactored to return interrupt signals that are handled by the main workflow.
+*MCP tools bypass HITL because they are executed in a subprocess that cannot access LangGraph's `interrupt()` function. The interrupt exception cannot cross process boundaries.
+
+### Why Native Tools for HITL?
+
+When using Native Tools, the execution flow is:
+```
+LangGraph → ToolNode → interrupt() → Graph pauses → Frontend shows UI → Resume → Continue
+```
+
+When using MCP Tools, the execution flow is:
+```
+LangGraph → ToolNode → MCP Client → Subprocess → interrupt() → ??? (lost)
+```
+
+The subprocess cannot signal back to the main LangGraph workflow to pause execution.
+
+### Recommendation
+
+**Use Native Tools (`USE_NATIVE_TOOLS: True`) if you need HITL features.**
+
+For detailed HITL implementation guide, see [HITL_GUIDE.md](HITL_GUIDE.md).
 
 ## MCP Server Options
 
