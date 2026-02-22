@@ -47,17 +47,18 @@ export const useChat = (threadId: string | null, sessionId: string | null) => {
         return;
       }
 
-      // Add user message
+      // Add user message with unique ID
+      const userMessageId = `user-${Date.now()}-${Math.random().toString(36).substring(7)}`;
       const userMessage: Message = {
-        id: Date.now().toString(),
+        id: userMessageId,
         role: 'user',
         content: message,
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, userMessage]);
 
-      // Create assistant message placeholder
-      const assistantMessageId = (Date.now() + 1).toString();
+      // Create assistant message placeholder with unique ID
+      const assistantMessageId = `assistant-${Date.now()}-${Math.random().toString(36).substring(7)}`;
       const assistantMessage: Message = {
         id: assistantMessageId,
         role: 'assistant',
@@ -128,9 +129,9 @@ export const useChat = (threadId: string | null, sessionId: string | null) => {
               prev.filter((msg) => msg.id !== assistantMessageId || msg.content.trim() !== '')
             );
             
-            // Add interrupt message
+            // Add interrupt message with unique ID
             const interruptMessage: Message = {
-              id: (Date.now() + 2).toString(),
+              id: `interrupt-${Date.now()}-${Math.random().toString(36).substring(7)}`,
               role: 'interrupt',
               content: interruptPayload.message,
               timestamp: new Date(),
@@ -190,8 +191,8 @@ export const useChat = (threadId: string | null, sessionId: string | null) => {
       setPendingInterrupt(null);
       setIsStreaming(true);
 
-      // Create new assistant placeholder for the continued response
-      const assistantMessageId = Date.now().toString();
+      // Create new assistant placeholder for the continued response with unique ID
+      const assistantMessageId = `assistant-${Date.now()}-${Math.random().toString(36).substring(7)}`;
       const assistantMessage: Message = {
         id: assistantMessageId,
         role: 'assistant',
@@ -257,9 +258,9 @@ export const useChat = (threadId: string | null, sessionId: string | null) => {
               prev.filter((msg) => msg.id !== assistantMessageId || msg.content.trim() !== '')
             );
             
-            // Add new interrupt message
+            // Add new interrupt message with unique ID
             const interruptMessage: Message = {
-              id: (Date.now() + 2).toString(),
+              id: `interrupt-${Date.now()}-${Math.random().toString(36).substring(7)}`,
               role: 'interrupt',
               content: interruptPayload.message,
               timestamp: new Date(),

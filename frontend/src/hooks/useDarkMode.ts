@@ -37,30 +37,18 @@ export const useDarkMode = () => {
 
   // Update DOM and localStorage when state changes
   useEffect(() => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/914ce8e7-e2d2-4072-91c7-98c052f8c9b6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useDarkMode.ts:39',message:'useEffect triggered',data:{isDark,htmlClasses:document.documentElement.className,bodyClasses:document.body.className},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
-    
     const html = document.documentElement;
     const body = document.body;
-    
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/914ce8e7-e2d2-4072-91c7-98c052f8c9b6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useDarkMode.ts:45',message:'Before DOM update',data:{htmlHasDark:html.classList.contains('dark'),bodyHasDark:body.classList.contains('dark'),htmlClassList:Array.from(html.classList),bodyClassList:Array.from(body.classList)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
-    
+
     // Force update - remove all dark classes first, then add if needed
     html.classList.remove('dark');
     body.classList.remove('dark');
     if (isDark) {
       html.classList.add('dark');
     }
-    
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/914ce8e7-e2d2-4072-91c7-98c052f8c9b6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useDarkMode.ts:55',message:'After DOM update',data:{htmlHasDark:html.classList.contains('dark'),bodyHasDark:body.classList.contains('dark'),htmlClassList:Array.from(html.classList),bodyClassList:Array.from(body.classList)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
-    
+
     localStorage.setItem('darkMode', isDark.toString());
-    
+
     // Check computed styles to see if dark mode CSS is actually applied
     const testElement = document.createElement('div');
     testElement.className = 'bg-gray-50 dark:bg-gray-900';
@@ -69,57 +57,37 @@ export const useDarkMode = () => {
     document.body.appendChild(testElement);
     const computedBg = window.getComputedStyle(testElement).backgroundColor;
     document.body.removeChild(testElement);
-    
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/914ce8e7-e2d2-4072-91c7-98c052f8c9b6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useDarkMode.ts:70',message:'Computed style check',data:{isDark,htmlHasDark:html.classList.contains('dark'),testElementBg:computedBg,expectedDarkBg:'rgb(17, 24, 39)',expectedLightBg:'rgb(249, 250, 251)'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-    // #endregion
-    
+
     // Verify the update worked
     const actualHasDark = html.classList.contains('dark');
     console.log('Dark mode updated:', isDark, 'DOM class:', actualHasDark, 'Match:', isDark === actualHasDark);
   }, [isDark]);
 
   const toggle = useCallback(() => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/914ce8e7-e2d2-4072-91c7-98c052f8c9b6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useDarkMode.ts:78',message:'Toggle clicked',data:{currentIsDark:isDark,htmlHasDark:document.documentElement.classList.contains('dark')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-    // #endregion
-    
     console.log('Toggle button clicked');
     setIsDark((prev) => {
       const newValue = !prev;
       console.log('Toggling dark mode:', prev, '->', newValue);
-      
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/914ce8e7-e2d2-4072-91c7-98c052f8c9b6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useDarkMode.ts:85',message:'Inside toggle setState',data:{prev,newValue},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-      // #endregion
-      
+
       // Update DOM immediately for instant feedback
       const html = document.documentElement;
       const body = document.body;
-      
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/914ce8e7-e2d2-4072-91c7-98c052f8c9b6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useDarkMode.ts:92',message:'Before toggle DOM update',data:{newValue,htmlHasDark:html.classList.contains('dark'),bodyHasDark:body.classList.contains('dark')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
-      
+
       html.classList.remove('dark');
       body.classList.remove('dark');
       if (newValue) {
         html.classList.add('dark');
       }
-      
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/914ce8e7-e2d2-4072-91c7-98c052f8c9b6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useDarkMode.ts:100',message:'After toggle DOM update',data:{newValue,htmlHasDark:html.classList.contains('dark'),bodyHasDark:body.classList.contains('dark'),htmlClassList:Array.from(html.classList)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
-      
+
       localStorage.setItem('darkMode', newValue.toString());
-      
+
       // Verify
       const actualHasDark = html.classList.contains('dark');
       console.log('After toggle - State:', newValue, 'DOM class:', actualHasDark);
-      
+
       return newValue;
     });
-  }, [isDark]); // Include isDark to log current state
+  }, [isDark]);
 
   return { isDark, toggle, setIsDark };
 };

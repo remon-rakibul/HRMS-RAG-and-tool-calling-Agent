@@ -1,6 +1,6 @@
 /** Main chat interface component */
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useSession } from '../hooks/useSession';
 import { useChat } from '../hooks/useChat';
@@ -34,24 +34,19 @@ export const ChatInterface = () => {
   );
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // #region agent log
-  React.useEffect(() => {
-    fetch('http://127.0.0.1:7242/ingest/914ce8e7-e2d2-4072-91c7-98c052f8c9b6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ChatInterface.tsx:25',message:'Component render with dark mode',data:{isDark,htmlHasDark:document.documentElement.classList.contains('dark'),htmlClassList:Array.from(document.documentElement.classList)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-  }, [isDark]);
-  // #endregion
-
   // Merge history and current messages properly
-  // Filter out new messages that are already in history (by content match)
+  // Create a map of history message IDs for efficient lookup
+  const historyMessageIds = new Set(historyMessages.map(msg => msg.id));
+  
+  // Filter out new messages that are already in history (by ID match)
+  // This prevents duplicates while preserving messages with identical content
   const newMessagesNotInHistory = messages.filter((newMsg) => {
-    // Check if a message with same content and role exists in history
-    return !historyMessages.some(
-      (histMsg) => 
-        histMsg.content === newMsg.content && 
-        histMsg.role === newMsg.role
-    );
+    // If message doesn't have an ID from history, it's a new message
+    return !historyMessageIds.has(newMsg.id);
   });
   
   // Combine: history first, then new messages
+  // Sort by timestamp to maintain chronological order
   const displayMessages = [...historyMessages, ...newMessagesNotInHistory].sort(
     (a, b) => a.timestamp.getTime() - b.timestamp.getTime()
   );
@@ -148,9 +143,6 @@ export const ChatInterface = () => {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-lg font-bold text-gray-800 dark:text-gray-100">HRMS Agent</h1>
-            {employeeId && (
-              <p className="text-xs text-gray-600 dark:text-gray-400">Employee ID: {employeeId}</p>
-            )}
           </div>
           <div className="flex items-center gap-2">
             <button

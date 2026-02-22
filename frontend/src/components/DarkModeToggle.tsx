@@ -8,41 +8,12 @@ interface DarkModeToggleProps {
 }
 
 export const DarkModeToggle = ({ isDark, onToggle }: DarkModeToggleProps) => {
-  // #region agent log
-  React.useEffect(() => {
-    fetch('http://127.0.0.1:7242/ingest/914ce8e7-e2d2-4072-91c7-98c052f8c9b6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DarkModeToggle.tsx:9',message:'Component mounted/updated',data:{isDark,onToggleType:typeof onToggle},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-  }, [isDark, onToggle]);
-  // #endregion
-
   const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/914ce8e7-e2d2-4072-91c7-98c052f8c9b6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DarkModeToggle.tsx:15',message:'handleClick called',data:{isDark,eventType:e.type},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-    // #endregion
-    
     e.preventDefault();
     e.stopPropagation();
     console.log('Toggle button clicked, current isDark:', isDark);
-    
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/914ce8e7-e2d2-4072-91c7-98c052f8c9b6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DarkModeToggle.tsx:22',message:'About to call onToggle',data:{isDark},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-    // #endregion
-    
     onToggle();
-    
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/914ce8e7-e2d2-4072-91c7-98c052f8c9b6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DarkModeToggle.tsx:25',message:'onToggle called',data:{isDark},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-    // #endregion
   };
-
-  // #region agent log
-  React.useEffect(() => {
-    const button = document.querySelector('[data-dark-toggle]');
-    if (button) {
-      const styles = window.getComputedStyle(button);
-      fetch('http://127.0.0.1:7242/ingest/914ce8e7-e2d2-4072-91c7-98c052f8c9b6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DarkModeToggle.tsx:32',message:'Button element check',data:{exists:!!button,pointerEvents:styles.pointerEvents,zIndex:styles.zIndex,display:styles.display,visibility:styles.visibility},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-    }
-  }, []);
-  // #endregion
 
   return (
     <button
