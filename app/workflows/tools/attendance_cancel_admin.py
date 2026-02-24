@@ -13,6 +13,7 @@ import json
 from app.workflows.tools import tool_registry
 from app.workflows.prompt_loader import should_require_approval
 from langgraph.types import interrupt
+from langgraph.errors import GraphInterrupt
 
 # Suppress SSL warnings for self-signed certificates
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -518,6 +519,9 @@ def cancel_attendance_for_employee(
             
             print("[HRMS Admin] HITL: Attendance cancellation confirmed by admin", flush=True)
         
+    except GraphInterrupt:
+        # Re-raise interrupt exceptions - they're part of HITL flow
+        raise
     except httpx.TimeoutException:
         return "❌ Request timeout while retrieving attendance requests. Please try again."
     except httpx.RequestError as e:
