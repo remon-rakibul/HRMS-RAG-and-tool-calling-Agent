@@ -49,15 +49,6 @@ export const useDarkMode = () => {
 
     localStorage.setItem('darkMode', isDark.toString());
 
-    // Check computed styles to see if dark mode CSS is actually applied
-    const testElement = document.createElement('div');
-    testElement.className = 'bg-gray-50 dark:bg-gray-900';
-    testElement.style.position = 'absolute';
-    testElement.style.visibility = 'hidden';
-    document.body.appendChild(testElement);
-    const computedBg = window.getComputedStyle(testElement).backgroundColor;
-    document.body.removeChild(testElement);
-
     // Verify the update worked
     const actualHasDark = html.classList.contains('dark');
     console.log('Dark mode updated:', isDark, 'DOM class:', actualHasDark, 'Match:', isDark === actualHasDark);
