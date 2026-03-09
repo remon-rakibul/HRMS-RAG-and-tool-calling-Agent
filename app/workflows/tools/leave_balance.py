@@ -4,6 +4,7 @@ This tool allows users to check their leave balance from the HRMS API.
 It handles authentication and retrieves the current leave balance for the logged-in employee.
 """
 
+from datetime import date
 from typing import Annotated, Optional
 import httpx
 import urllib3
@@ -128,7 +129,10 @@ def get_leave_balance(
         print("[HRMS] Fetching leave balance...", flush=True)
         balance_response = httpx.get(
             f"{HRMS_BASE_URL}/api/HRMS/Leave/EmployeeLeaveBalance/GetLeaveBalance",
-            params={"employeeId": employee_id},
+            params={
+                "employeeId": employee_id,
+                "selectedYear": date.today().year,
+            },
             headers=headers,
             timeout=30.0,
             verify=False
